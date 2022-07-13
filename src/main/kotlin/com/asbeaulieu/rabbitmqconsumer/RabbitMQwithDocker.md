@@ -27,3 +27,90 @@ implementation 'com.rabbitmq:amqp-client:5.9.0'
 ```
 
 ## Producer
+
+The producer is setup from the com.rabbitmq.client.ConnectionFactory package
+
+```kotlin
+@PostMapping("/{messageId}")
+    fun publishMessage(@PathVariable("messageId") messageId: Int, @RequestBody messageBody: RabbitMQMessage): RabbitMQMessage? {
+        val rabbitMQMessage = RabbitMQMessage(messageId = messageId, message = messageBody.message, date = Instant.now())
+
+        val factory = ConnectionFactory()
+        factory.newConnection("amqp://guest:guest@localhost:5672/").use { connection ->
+            connection.createChannel().use { channel ->
+                channel.queueDeclare("test_queue", false, false, false, null)
+                val message = rabbitMQMessage
+                channel.basicPublish(
+                    "",
+                    "", //routing key cannot be null
+                    null,
+                    message.toString().toByteArray(StandardCharsets.UTF_8)
+                )
+                println("Published message: ${message}")
+            }
+        }
+
+        return rabbitMQMessage
+    }
+```
+
+## Consumer
+
+The consumer operates much in the same way to connect to the message broker
+
+```kotlin
+fun main(args: Array<String>) {
+    val factory = ConnectionFactory()
+    val connection = factory.newConnection("amqp://guest:guest@localhost:5672/")
+    val channel = connection.createChannel()
+    val consumerTag = "SimpleConsumer"
+
+    channel.queueDeclare("test_queue", false, false, false, null)
+
+    println("[$consumerTag] Waiting for messages...")
+
+    val deliverCallback = DeliverCallback { consumerTag: String?, delivery: Delivery ->
+        val message = String(delivery.body, StandardCharsets.UTF_8)
+        println("[$consumerTag] Received message: '$message'")
+    }
+
+    val cancelCallback = CancelCallback {consumerTag: String? ->
+        println("[$consumerTag] was cancelled")
+    }
+
+    channel.basicConsume(
+        "test_queue",
+        true,
+        consumerTag,
+        deliverCallback,
+        cancelCallback
+    )
+}
+```
+
+## Running the program. 
+
+1) Start docker container for rabbitMQ manager
+
+2) open browser to http://localhost:15762 to confirm message
+broker is up
+
+3) Run KotlinToolboxApplication
+
+4) Run RabbitConsumerApplication
+
+5) Use Postman, Insomnia, or CUrl operation:
+
+```curl
+curl --location --request POST 'localhost:8080/rabbit/46' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "message": "Hello there!"
+}'
+```
+
+6) Check console logs and RabbitMQ manager
+   1) KotlinToolboxApplication should log publishing of message
+   2) RabbitMQ manager should show traffic of message
+   3) RabbitConsumerApplication should log the message as it's consumed
+
