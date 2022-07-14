@@ -128,6 +128,9 @@ Queues and Exchanges are Durable or Transient
 * This does not mean that any underlying messages are persisted
   * Unless persistence is specified, messages are kept in memory
 * Can also tell a Queue to auto-delete if no consumers are connected
+* RabbitMQ does not load balance between queues, only customers
+  * If two applications are consuming the same queue, they will receive
+the messages one after the other, regardless of exchange type.
 
 ## Exchange Types
 
@@ -148,7 +151,7 @@ with the same routing key that the publisher used
 
 ### Fanout
 
-* Messages are routed to all bound queues
+* Messages are routed to all bound queues/consumers
   * Every queue will receive a copy of the message
 * Routing key is ignored
 
@@ -186,6 +189,29 @@ It's the consumers that will tell you best which to use
 
 * A service annoucement that needs to be sent to all connected mobile devices
 * A game that needs to update leaderboard updates
-* Distributed Systems that notify components of configuration chagnes
+* Distributed Systems that notify components of configuration changes
+* Messages that need to be distributed to all consumers
 
 #### Direct
+
+* Needs routing key to match the one defined in the binding
+* Simple routing is only needed
+* A system where a user can upload an image and can have a message sent out
+  * The exchange can send out the image to a worker to make it into a thumbnail,
+Or a worker for facial recognition
+
+#### Topic
+
+* Consumers that perform background tasks
+* Good for complex routing scenarios
+  * Topic offers the most flexibility if required
+* Needing to log all events in a certain category
+* Any messaging that involves categories of messages
+
+#### Headers
+
+* Very special case, not recommended in most cases
+* If very special filtering from the headers are really needed over bindings
+
+
+
